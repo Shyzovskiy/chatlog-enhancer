@@ -5,6 +5,8 @@
 	<meta charset="UTF-8">
 	<meta name="viewport" content="width=device-width, initial-scale=1.0">
 	<title>Chatlog Enhancer</title>
+	<link rel="icon"
+		href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>💬</text></svg>">
 	<script>
 		// Anti-flicker: Set theme before body renders
 		(function () {
@@ -199,6 +201,17 @@
 			min-height: 34px;
 		}
 
+		.header-actions {
+			display: flex;
+			gap: 10px;
+		}
+
+		.header-actions button {
+			width: auto;
+			padding: 5px 15px;
+			margin: 0;
+		}
+
 		textarea {
 			flex: 1;
 			resize: none;
@@ -299,6 +312,22 @@
 			user-select: none;
 		}
 
+		.line-count {
+			font-size: 0.8rem;
+			color: #888;
+			margin-left: 10px;
+			font-weight: normal;
+		}
+
+		.file-name {
+			font-size: 0.8rem;
+			color: #666;
+			margin-top: 5px;
+			white-space: nowrap;
+			overflow: hidden;
+			text-overflow: ellipsis;
+		}
+
 		/* Responsive */
 		@media (max-width: 768px) {
 			body {
@@ -350,6 +379,7 @@
 			<label data-i18n="actions">Actions</label>
 			<input type="file" id="file-upload" accept=".txt" style="display: none;">
 			<button id="upload-btn" data-i18n="uploadFile">Upload File</button>
+			<div id="file-name" class="file-name"></div>
 		</div>
 
 		<div class="control-group">
@@ -383,15 +413,6 @@
 					<input type="checkbox" id="filter-phone"> <span
 						data-i18n="filterPhone">Phone</span>
 				</label>
-				<hr style="border: 0; border-top: 1px solid var(--border-color); margin: 5px 0;">
-				<label class="checkbox-item">
-					<input type="checkbox" id="remove-empty" checked> <span
-						data-i18n="removeEmpty">Remove Empty/Junk</span>
-				</label>
-				<label class="checkbox-item">
-					<input type="checkbox" id="smart-merge" checked> <span
-						data-i18n="smartMerge">Smart Merge</span>
-				</label>
 			</div>
 		</div>
 	</aside>
@@ -399,17 +420,27 @@
 	<main class="main-content">
 		<div class="panel">
 			<div class="panel-header">
-				<span data-i18n="input">Input</span>
+				<div>
+					<span data-i18n="input">Input</span>
+					<span id="input-count" class="line-count">0 lines</span>
+				</div>
 			</div>
 			<textarea id="input-log"
 				placeholder="Paste your chatlog here or drag & drop a file..."></textarea>
 		</div>
 		<div class="panel">
 			<div class="panel-header">
-				<span data-i18n="output">Output</span>
-				<button id="copy-btn" class="secondary"
-					style="width: auto; padding: 5px 15px; margin: 0;" data-i18n="copyText">Copy
-					Text</button>
+				<div>
+					<span data-i18n="output">Output</span>
+					<span id="output-count" class="line-count">0 lines</span>
+				</div>
+				<div class="header-actions">
+					<button id="download-btn" class="secondary"
+						data-i18n="download">Download</button>
+					<button id="gdocs-btn" class="secondary" data-i18n="openGDocs">Google
+						Docs</button>
+					<button id="copy-btn" class="secondary" data-i18n="copyText">Copy Text</button>
+				</div>
 			</div>
 			<div id="output-log"></div>
 		</div>
@@ -439,8 +470,11 @@
 				output: "Preview",
 				copyText: "Copy Text",
 				copied: "Copied!",
+				download: "Download .txt",
+				openGDocs: "Open Google Docs",
 				placeholder: "Paste your chatlog here or drag & drop a file...",
-				clearConfirm: "Clear chatlog?"
+				clearConfirm: "Clear chatlog?",
+				lines: "lines"
 			},
 			ru: {
 				language: "Язык",
@@ -463,8 +497,11 @@
 				output: "Результат",
 				copyText: "Копировать текст",
 				copied: "Скопировано!",
+				download: "Скачать .txt",
+				openGDocs: "Открыть Google Docs",
 				placeholder: "Вставьте лог сюда или перетащите файл...",
-				clearConfirm: "Очистить чатлог?"
+				clearConfirm: "Очистить чатлог?",
+				lines: "строк"
 			},
 			ua: {
 				language: "Мова",
@@ -487,8 +524,11 @@
 				output: "Результат",
 				copyText: "Копіювати текст",
 				copied: "Скопійовано!",
+				download: "Завантажити .txt",
+				openGDocs: "Відкрити Google Docs",
 				placeholder: "Вставте лог сюди або перетягніть файл...",
-				clearConfirm: "Очистити чатлог?"
+				clearConfirm: "Очистити чатлог?",
+				lines: "рядків"
 			}
 		};
 
@@ -505,7 +545,12 @@
 			inputLog: document.getElementById('input-log'),
 			outputLog: document.getElementById('output-log'),
 			copyBtn: document.getElementById('copy-btn'),
+			downloadBtn: document.getElementById('download-btn'),
+			gdocsBtn: document.getElementById('gdocs-btn'),
 			logo: document.querySelector('.logo'),
+			fileName: document.getElementById('file-name'),
+			inputCount: document.getElementById('input-count'),
+			outputCount: document.getElementById('output-count'),
 			filters: {
 				timestamps: document.getElementById('show-timestamps'),
 				ic: document.getElementById('filter-ic'),
@@ -513,9 +558,7 @@
 				radio: document.getElementById('filter-radio'),
 				ooc: document.getElementById('filter-ooc'),
 				system: document.getElementById('filter-system'),
-				phone: document.getElementById('filter-phone'),
-				removeEmpty: document.getElementById('remove-empty'),
-				smartMerge: document.getElementById('smart-merge')
+				phone: document.getElementById('filter-phone')
 			}
 		};
 
@@ -526,16 +569,40 @@
 			updateLanguage(currentLang);
 			// Theme is already set by head script, but we sync state here
 
+			// Load saved log
+			const savedLog = localStorage.getItem('saved_input_log');
+			const savedFileName = localStorage.getItem('saved_filename');
+
+			if (savedFileName) {
+				els.fileName.textContent = savedFileName;
+			}
+
+			if (savedLog) {
+				els.inputLog.value = savedLog;
+				// We'll process it below
+			}
+
 			// Event Listeners
 			els.langSelect.addEventListener('change', (e) => updateLanguage(e.target.value));
 			els.themeBtn.addEventListener('click', toggleTheme);
 			els.uploadBtn.addEventListener('click', () => els.fileInput.click());
 			els.fileInput.addEventListener('change', handleFileUpload);
-			els.inputLog.addEventListener('input', processLogs); // Real-time
+
+			els.inputLog.addEventListener('input', () => {
+				localStorage.setItem('saved_input_log', els.inputLog.value);
+				processLogs();
+			});
+
 			els.copyBtn.addEventListener('click', copyToClipboard);
+			els.downloadBtn.addEventListener('click', downloadLog);
+			els.gdocsBtn.addEventListener('click', openGoogleDocs);
+
 			els.logo.addEventListener('click', () => {
 				if (confirm(translations[currentLang].clearConfirm || "Clear chatlog?")) {
 					els.inputLog.value = '';
+					els.fileName.textContent = '';
+					localStorage.removeItem('saved_input_log');
+					localStorage.removeItem('saved_filename');
 					processLogs();
 				}
 			});
@@ -547,14 +614,23 @@
 			els.inputLog.addEventListener('dragover', (e) => { e.preventDefault(); els.inputLog.style.borderColor = 'var(--accent-color)'; });
 			els.inputLog.addEventListener('dragleave', () => { els.inputLog.style.borderColor = 'var(--border-color)'; });
 			els.inputLog.addEventListener('drop', handleDrop);
+
+			// Initial process if we loaded data
+			if (savedLog) processLogs();
 		}
 
 		// --- Core Logic: Parsing ---
 		function processLogs() {
 			const rawText = els.inputLog.value;
+
+			// Update input count
+			const inputLines = rawText ? rawText.split(/\r?\n/).length : 0;
+			els.inputCount.textContent = `${inputLines} ${translations[currentLang].lines}`;
+
 			// If empty, clear output
 			if (!rawText) {
 				els.outputLog.innerHTML = '';
+				els.outputCount.textContent = `0 ${translations[currentLang].lines}`;
 				return;
 			}
 
@@ -568,8 +644,9 @@
 				let line = lines[i].trim();
 
 				// Skip empty lines if filter is on
-				if (!line && els.filters.removeEmpty.checked) continue;
-				if (els.filters.removeEmpty.checked && (line === '---' || line.match(/^_+$/))) continue;
+				// HARDCODED: removeEmpty is always true
+				if (!line) continue;
+				if (line === '---' || line.match(/^_+$/)) continue;
 
 				// Timestamp extraction
 				let timestamp = "";
@@ -580,9 +657,10 @@
 				}
 
 				// Smart Merge Logic
+				// HARDCODED: smartMerge is always true
 				// If smart merge is ON, and this line has NO timestamp, and it's not a system message start (heuristic),
 				// append to previous line.
-				if (els.filters.smartMerge.checked && !timeMatch && bufferLine && line.length > 0) {
+				if (!timeMatch && bufferLine && line.length > 0) {
 					bufferLine.content += " " + line;
 				} else {
 					if (bufferLine) processedLines.push(bufferLine);
@@ -615,11 +693,16 @@
 					tsSpan.className = 'timestamp';
 					tsSpan.textContent = `[${item.timestamp}]`;
 					div.appendChild(tsSpan);
+					// Add explicit space after timestamp for copy/download
+					div.appendChild(document.createTextNode(" "));
 				}
 
 				div.innerHTML += formattedContent; // Safe because we sanitize in categorizeAndFormat if needed, but here we want inner HTML for styling
 				els.outputLog.appendChild(div);
 			});
+
+			// Update output count (based on actually visible lines)
+			els.outputCount.textContent = `${els.outputLog.childElementCount} ${translations[currentLang].lines}`;
 		}
 
 		function categorizeAndFormat(text) {
@@ -723,6 +806,9 @@
 			});
 			// Update placeholder explicitly
 			els.inputLog.placeholder = translations[lang].placeholder;
+
+			// Re-process logs to update counters with new language
+			processLogs();
 		}
 
 		function toggleTheme() {
@@ -739,6 +825,8 @@
 		function handleFileUpload(e) {
 			const file = e.target.files[0];
 			if (!file) return;
+			els.fileName.textContent = file.name;
+			localStorage.setItem('saved_filename', file.name);
 			readFile(file);
 		}
 
@@ -767,6 +855,23 @@
 					els.copyBtn.textContent = translations[currentLang].copyText;
 				}, 2000);
 			});
+		}
+
+		function downloadLog() {
+			const text = els.outputLog.innerText;
+			const blob = new Blob([text], { type: 'text/plain' });
+			const url = URL.createObjectURL(blob);
+			const a = document.createElement('a');
+			a.href = url;
+			a.download = 'chatlog_processed.txt';
+			document.body.appendChild(a);
+			a.click();
+			document.body.removeChild(a);
+			URL.revokeObjectURL(url);
+		}
+
+		function openGoogleDocs() {
+			window.open('https://docs.google.com/document/create', '_blank');
 		}
 
 		// Start
