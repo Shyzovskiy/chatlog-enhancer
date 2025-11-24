@@ -10,7 +10,7 @@
 	<script>
 		// Anti-flicker: Set theme before body renders
 		(function () {
-			const savedTheme = localStorage.getItem('chatlog_theme') || 'light';
+			const savedTheme = localStorage.getItem('chatlog_theme') || 'dark';
 			document.documentElement.setAttribute('data-theme', savedTheme);
 		})();
 	</script>
@@ -300,6 +300,11 @@
 			color: var(--color-system);
 		}
 
+		.log-call911 {
+			color: #e74c3c;
+			font-weight: bold;
+		}
+
 		.inner-action {
 			color: var(--color-inner-action);
 			font-style: italic;
@@ -390,11 +395,11 @@
 						data-i18n="showTimestamps">Show Timestamps</span>
 				</label>
 				<label class="checkbox-item">
-					<input type="checkbox" id="filter-ic" checked> <span data-i18n="filterIC">IC
+					<input type="checkbox" id="filter-ic"> <span data-i18n="filterIC">IC
 						Speech</span>
 				</label>
 				<label class="checkbox-item">
-					<input type="checkbox" id="filter-action" checked> <span
+					<input type="checkbox" id="filter-action"> <span
 						data-i18n="filterAction">Actions (/me, /do)</span>
 				</label>
 				<label class="checkbox-item">
@@ -412,6 +417,10 @@
 				<label class="checkbox-item">
 					<input type="checkbox" id="filter-phone"> <span
 						data-i18n="filterPhone">Phone</span>
+				</label>
+				<label class="checkbox-item">
+					<input type="checkbox" id="filter-911"> <span data-i18n="filter911">911
+						Calls</span>
 				</label>
 			</div>
 		</div>
@@ -464,6 +473,7 @@
 				filterOOC: "OOC / PM / Admin",
 				filterSystem: "System Messages",
 				filterPhone: "Phone Calls",
+				filter911: "911 Calls",
 				removeEmpty: "Remove Empty/Junk",
 				smartMerge: "Smart Merge Lines",
 				input: "Input Log",
@@ -491,6 +501,7 @@
 				filterOOC: "OOC / PM / Админ-чат",
 				filterSystem: "Системные сообщения",
 				filterPhone: "Телефон",
+				filter911: "Вызовы 911",
 				removeEmpty: "Удалять мусор",
 				smartMerge: "Объединять строки",
 				input: "Исходный текст",
@@ -518,6 +529,7 @@
 				filterOOC: "OOC / PM / Адмін-чат",
 				filterSystem: "Системні повідомлення",
 				filterPhone: "Телефон",
+				filter911: "Виклики 911",
 				removeEmpty: "Видаляти сміття",
 				smartMerge: "Об'єднувати рядки",
 				input: "Вхідний текст",
@@ -534,7 +546,7 @@
 
 		// --- State & Config ---
 		let currentLang = localStorage.getItem('chatlog_lang') || 'en';
-		let currentTheme = localStorage.getItem('chatlog_theme') || 'light';
+		let currentTheme = localStorage.getItem('chatlog_theme') || 'dark';
 
 		// --- Elements ---
 		const els = {
@@ -558,7 +570,8 @@
 				radio: document.getElementById('filter-radio'),
 				ooc: document.getElementById('filter-ooc'),
 				system: document.getElementById('filter-system'),
-				phone: document.getElementById('filter-phone')
+				phone: document.getElementById('filter-phone'),
+				call911: document.getElementById('filter-911')
 			}
 		};
 
@@ -569,13 +582,16 @@
 			updateLanguage(currentLang);
 			// Theme is already set by head script, but we sync state here
 
+			// Load saved filters
+			Object.keys(els.filters).forEach(key => {
+				const savedState = localStorage.getItem('filter_' + key);
+				if (savedState !== null) {
+					els.filters[key].checked = (savedState === 'true');
+				}
+			});
+
 			// Load saved log
 			const savedLog = localStorage.getItem('saved_input_log');
-			const savedFileName = localStorage.getItem('saved_filename');
-
-			if (savedFileName) {
-				els.fileName.textContent = savedFileName;
-			}
 
 			if (savedLog) {
 				els.inputLog.value = savedLog;
@@ -602,13 +618,17 @@
 					els.inputLog.value = '';
 					els.fileName.textContent = '';
 					localStorage.removeItem('saved_input_log');
-					localStorage.removeItem('saved_filename');
 					processLogs();
 				}
 			});
 
-			// Auto-process on filter change
-			Object.values(els.filters).forEach(cb => cb.addEventListener('change', processLogs));
+			// Auto-process on filter change & save state
+			Object.entries(els.filters).forEach(([key, cb]) => {
+				cb.addEventListener('change', () => {
+					localStorage.setItem('filter_' + key, cb.checked);
+					processLogs();
+				});
+			});
 
 			// Drag & Drop
 			els.inputLog.addEventListener('dragover', (e) => { e.preventDefault(); els.inputLog.style.borderColor = 'var(--accent-color)'; });
@@ -681,6 +701,7 @@
 				if (type === 'action' && !els.filters.action.checked) return;
 				if (type === 'env' && !els.filters.action.checked) return; // Grouped with action
 				if (type === 'phone' && !els.filters.phone.checked) return;
+				if (type === 'call911' && !els.filters.call911.checked) return;
 				if (type === 'system' && !els.filters.system.checked) return;
 				if ((type === 'speech' || type === 'shout' || type === 'whisper') && !els.filters.ic.checked) return;
 
@@ -718,6 +739,11 @@
 			// 1. Radio / Dep: **[S: or ** [ or (Рация)
 			if (/^\*\*(\s*)\[/.test(text) || /^\(Рация\)/.test(text)) {
 				type = 'radio';
+			}
+			// 1.5. 911 Calls
+			else if (/\*{10,}\s+(ЭКСТРЕННЫЙ ВЫЗОВ|EMERGENCY CALL)\s+\*{10,}/.test(text) ||
+				/^\*\s+(Номер журнала|Номер телефона|Местоположение|Ситуация|Call Number|Phone Number|Location|Situation):/.test(text)) {
+				type = 'call911';
 			}
 			// 2. OOC / PM / Admin: ((, [Adm, or double brackets
 			else if (/^\(\(/.test(text) || /^\[Adm/.test(text) || /\(\(.*\)\)/.test(text)) {
@@ -826,7 +852,6 @@
 			const file = e.target.files[0];
 			if (!file) return;
 			els.fileName.textContent = file.name;
-			localStorage.setItem('saved_filename', file.name);
 			readFile(file);
 		}
 
