@@ -1,0 +1,778 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>Chatlog Enhancer</title>
+	<script>
+		// Anti-flicker: Set theme before body renders
+		(function () {
+			const savedTheme = localStorage.getItem('chatlog_theme') || 'light';
+			document.documentElement.setAttribute('data-theme', savedTheme);
+		})();
+	</script>
+	<style>
+		:root {
+			/* Light Theme */
+			--bg-color: #f4f4f9;
+			--sidebar-bg: #ffffff;
+			--text-color: #333333;
+			--border-color: #e0e0e0;
+			--input-bg: #ffffff;
+			--output-bg: #ffffff;
+			--accent-color: #6c5ce7;
+			--accent-hover: #5b4cc4;
+			--scroll-thumb: #ccc;
+
+			/* Log Colors (Light) */
+			--color-radio: #0984e3;
+			--color-ooc: #b2bec3;
+			--color-action: #a29bfe;
+			--color-env: #636e72;
+			--color-phone: #fdcb6e;
+			--color-shout: #d63031;
+			--color-whisper: #e17055;
+			/* Gold-ish orange */
+			--color-speech: #2d3436;
+			--color-system: #00b894;
+			--color-inner-action: #a29bfe;
+		}
+
+		[data-theme="dark"] {
+			/* Dark Theme */
+			--bg-color: #1e1e2e;
+			--sidebar-bg: #252537;
+			--text-color: #dcdcdc;
+			--border-color: #3a3a4e;
+			--input-bg: #2b2b3d;
+			--output-bg: #181825;
+			--accent-color: #7c73e6;
+			--accent-hover: #6b63d5;
+			--scroll-thumb: #4a4a5e;
+
+			/* Log Colors (Dark) */
+			--color-radio: #74b9ff;
+			--color-ooc: #636e72;
+			/* Dimmer gray */
+			--color-action: #cfa0e9;
+			/* Light purple */
+			--color-env: #a4b0be;
+			--color-phone: #ffeaa7;
+			--color-shout: #ff7675;
+			--color-whisper: #fab1a0;
+			--color-speech: #ffffff;
+			--color-system: #55efc4;
+			--color-inner-action: #cfa0e9;
+		}
+
+		* {
+			box-sizing: border-box;
+			margin: 0;
+			padding: 0;
+			font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+		}
+
+		body {
+			background-color: var(--bg-color);
+			color: var(--text-color);
+			height: 100vh;
+			display: flex;
+			overflow: hidden;
+			transition: background-color 0.3s, color 0.3s;
+		}
+
+		/* Sidebar */
+		.sidebar {
+			width: 300px;
+			background-color: var(--sidebar-bg);
+			border-right: 1px solid var(--border-color);
+			display: flex;
+			flex-direction: column;
+			padding: 20px;
+			overflow-y: auto;
+			flex-shrink: 0;
+		}
+
+		.logo {
+			font-size: 1.5rem;
+			font-weight: bold;
+			margin-bottom: 20px;
+			color: var(--accent-color);
+			display: flex;
+			align-items: center;
+			gap: 10px;
+			cursor: pointer;
+			user-select: none;
+		}
+
+		.control-group {
+			margin-bottom: 20px;
+		}
+
+		.control-group label {
+			display: block;
+			margin-bottom: 8px;
+			font-weight: 600;
+			font-size: 0.9rem;
+		}
+
+		select,
+		button {
+			width: 100%;
+			padding: 10px;
+			border-radius: 6px;
+			border: 1px solid var(--border-color);
+			background-color: var(--bg-color);
+			color: var(--text-color);
+			cursor: pointer;
+			font-size: 0.9rem;
+			transition: all 0.2s;
+		}
+
+		button {
+			background-color: var(--accent-color);
+			color: white;
+			border: none;
+			font-weight: 600;
+			margin-bottom: 10px;
+		}
+
+		button:hover {
+			background-color: var(--accent-hover);
+		}
+
+		button.secondary {
+			background-color: transparent;
+			border: 1px solid var(--accent-color);
+			color: var(--accent-color);
+		}
+
+		button.secondary:hover {
+			background-color: var(--accent-color);
+			color: white;
+		}
+
+		.checkbox-group {
+			display: flex;
+			flex-direction: column;
+			gap: 8px;
+		}
+
+		.checkbox-item {
+			display: flex;
+			align-items: center;
+			gap: 10px;
+			font-size: 0.9rem;
+			cursor: pointer;
+		}
+
+		.checkbox-item input {
+			accent-color: var(--accent-color);
+			width: 16px;
+			height: 16px;
+		}
+
+		/* Main Content */
+		.main-content {
+			flex: 1;
+			display: flex;
+			flex-direction: row;
+			height: 100%;
+		}
+
+		.panel {
+			flex: 1;
+			display: flex;
+			flex-direction: column;
+			padding: 20px;
+			min-width: 0;
+			/* Fix flex child overflow */
+		}
+
+		.panel-header {
+			margin-bottom: 10px;
+			font-weight: 600;
+			display: flex;
+			justify-content: space-between;
+			align-items: center;
+			min-height: 34px;
+		}
+
+		textarea {
+			flex: 1;
+			resize: none;
+			background-color: var(--input-bg);
+			color: var(--text-color);
+			border: 1px solid var(--border-color);
+			border-radius: 8px;
+			padding: 15px;
+			font-family: 'Consolas', 'Monaco', monospace;
+			font-size: 0.9rem;
+			outline: none;
+		}
+
+		textarea:focus {
+			border-color: var(--accent-color);
+		}
+
+		#output-log {
+			flex: 1;
+			background-color: var(--output-bg);
+			border: 1px solid var(--border-color);
+			border-radius: 8px;
+			padding: 15px;
+			overflow-y: auto;
+			font-family: 'Segoe UI', sans-serif;
+			line-height: 1.5;
+			white-space: pre-wrap;
+		}
+
+		/* Scrollbar */
+		::-webkit-scrollbar {
+			width: 8px;
+			height: 8px;
+		}
+
+		::-webkit-scrollbar-track {
+			background: transparent;
+		}
+
+		::-webkit-scrollbar-thumb {
+			background: var(--scroll-thumb);
+			border-radius: 4px;
+		}
+
+		/* Log Categories */
+		.log-line {
+			margin-bottom: 2px;
+			word-wrap: break-word;
+		}
+
+		.log-radio {
+			color: var(--color-radio);
+		}
+
+		.log-ooc {
+			color: var(--color-ooc);
+		}
+
+		.log-action {
+			color: var(--color-action);
+		}
+
+		.log-env {
+			color: var(--color-env);
+		}
+
+		.log-phone {
+			color: var(--color-phone);
+		}
+
+		.log-shout {
+			color: var(--color-shout);
+			font-weight: bold;
+		}
+
+		.log-whisper {
+			color: var(--color-whisper);
+			font-style: italic;
+		}
+
+		.log-speech {
+			color: var(--color-speech);
+		}
+
+		.log-system {
+			color: var(--color-system);
+		}
+
+		.inner-action {
+			color: var(--color-inner-action);
+			font-style: italic;
+		}
+
+		.timestamp {
+			color: #888;
+			font-size: 0.85em;
+			margin-right: 8px;
+			user-select: none;
+		}
+
+		/* Responsive */
+		@media (max-width: 768px) {
+			body {
+				flex-direction: column;
+				overflow: auto;
+			}
+
+			.sidebar {
+				width: 100%;
+				height: auto;
+				border-right: none;
+				border-bottom: 1px solid var(--border-color);
+			}
+
+			.main-content {
+				flex-direction: column;
+				height: auto;
+			}
+
+			.panel {
+				height: 500px;
+			}
+		}
+	</style>
+</head>
+
+<body>
+
+	<aside class="sidebar">
+		<div class="logo">
+			<span>💬 Chatlog Enhancer</span>
+		</div>
+
+		<div class="control-group">
+			<label data-i18n="language">Language</label>
+			<select id="language-select">
+				<option value="en">English</option>
+				<option value="ru">Русский</option>
+				<option value="ua">Українська</option>
+			</select>
+		</div>
+
+		<div class="control-group">
+			<label data-i18n="theme">Theme</label>
+			<button id="theme-toggle" class="secondary" data-i18n="toggleTheme">Switch Theme</button>
+		</div>
+
+		<div class="control-group">
+			<label data-i18n="actions">Actions</label>
+			<input type="file" id="file-upload" accept=".txt" style="display: none;">
+			<button id="upload-btn" data-i18n="uploadFile">Upload File</button>
+		</div>
+
+		<div class="control-group">
+			<label data-i18n="filters">Filters</label>
+			<div class="checkbox-group">
+				<label class="checkbox-item">
+					<input type="checkbox" id="show-timestamps"> <span
+						data-i18n="showTimestamps">Show Timestamps</span>
+				</label>
+				<label class="checkbox-item">
+					<input type="checkbox" id="filter-ic" checked> <span data-i18n="filterIC">IC
+						Speech</span>
+				</label>
+				<label class="checkbox-item">
+					<input type="checkbox" id="filter-action" checked> <span
+						data-i18n="filterAction">Actions (/me, /do)</span>
+				</label>
+				<label class="checkbox-item">
+					<input type="checkbox" id="filter-radio"> <span data-i18n="filterRadio">Radio /
+						Dep</span>
+				</label>
+				<label class="checkbox-item">
+					<input type="checkbox" id="filter-ooc"> <span data-i18n="filterOOC">OOC / PM /
+						Admin</span>
+				</label>
+				<label class="checkbox-item">
+					<input type="checkbox" id="filter-system"> <span data-i18n="filterSystem">System
+						Messages</span>
+				</label>
+				<label class="checkbox-item">
+					<input type="checkbox" id="filter-phone"> <span
+						data-i18n="filterPhone">Phone</span>
+				</label>
+				<hr style="border: 0; border-top: 1px solid var(--border-color); margin: 5px 0;">
+				<label class="checkbox-item">
+					<input type="checkbox" id="remove-empty" checked> <span
+						data-i18n="removeEmpty">Remove Empty/Junk</span>
+				</label>
+				<label class="checkbox-item">
+					<input type="checkbox" id="smart-merge" checked> <span
+						data-i18n="smartMerge">Smart Merge</span>
+				</label>
+			</div>
+		</div>
+	</aside>
+
+	<main class="main-content">
+		<div class="panel">
+			<div class="panel-header">
+				<span data-i18n="input">Input</span>
+			</div>
+			<textarea id="input-log"
+				placeholder="Paste your chatlog here or drag & drop a file..."></textarea>
+		</div>
+		<div class="panel">
+			<div class="panel-header">
+				<span data-i18n="output">Output</span>
+				<button id="copy-btn" class="secondary"
+					style="width: auto; padding: 5px 15px; margin: 0;" data-i18n="copyText">Copy
+					Text</button>
+			</div>
+			<div id="output-log"></div>
+		</div>
+	</main>
+
+	<script>
+		// --- Translations ---
+		const translations = {
+			en: {
+				language: "Language",
+				theme: "Theme",
+				toggleTheme: "Switch Theme",
+				actions: "Actions",
+				uploadFile: "Upload File",
+				process: "Process",
+				filters: "Filters",
+				showTimestamps: "Show Timestamps",
+				filterIC: "IC Speech (Say, Shout, Whisper)",
+				filterAction: "Actions (/me, /do)",
+				filterRadio: "Radio / Dep",
+				filterOOC: "OOC / PM / Admin",
+				filterSystem: "System Messages",
+				filterPhone: "Phone Calls",
+				removeEmpty: "Remove Empty/Junk",
+				smartMerge: "Smart Merge Lines",
+				input: "Input Log",
+				output: "Preview",
+				copyText: "Copy Text",
+				copied: "Copied!",
+				placeholder: "Paste your chatlog here or drag & drop a file...",
+				clearConfirm: "Clear chatlog?"
+			},
+			ru: {
+				language: "Язык",
+				theme: "Тема",
+				toggleTheme: "Переключить тему",
+				actions: "Действия",
+				uploadFile: "Загрузить файл",
+				process: "Обработать",
+				filters: "Фильтры",
+				showTimestamps: "Показывать время",
+				filterIC: "IC Чат (Речь, Крик, Шепот)",
+				filterAction: "Отыгровки (/me, /do)",
+				filterRadio: "Рация / Департамент",
+				filterOOC: "OOC / PM / Админ-чат",
+				filterSystem: "Системные сообщения",
+				filterPhone: "Телефон",
+				removeEmpty: "Удалять мусор",
+				smartMerge: "Объединять строки",
+				input: "Исходный текст",
+				output: "Результат",
+				copyText: "Копировать текст",
+				copied: "Скопировано!",
+				placeholder: "Вставьте лог сюда или перетащите файл...",
+				clearConfirm: "Очистить чатлог?"
+			},
+			ua: {
+				language: "Мова",
+				theme: "Тема",
+				toggleTheme: "Змінити тему",
+				actions: "Дії",
+				uploadFile: "Завантажити файл",
+				process: "Обробити",
+				filters: "Фільтри",
+				showTimestamps: "Показувати час",
+				filterIC: "IC Чат (Мова, Крик, Шепіт)",
+				filterAction: "Відігравання (/me, /do)",
+				filterRadio: "Рація / Департамент",
+				filterOOC: "OOC / PM / Адмін-чат",
+				filterSystem: "Системні повідомлення",
+				filterPhone: "Телефон",
+				removeEmpty: "Видаляти сміття",
+				smartMerge: "Об'єднувати рядки",
+				input: "Вхідний текст",
+				output: "Результат",
+				copyText: "Копіювати текст",
+				copied: "Скопійовано!",
+				placeholder: "Вставте лог сюди або перетягніть файл...",
+				clearConfirm: "Очистити чатлог?"
+			}
+		};
+
+		// --- State & Config ---
+		let currentLang = localStorage.getItem('chatlog_lang') || 'en';
+		let currentTheme = localStorage.getItem('chatlog_theme') || 'light';
+
+		// --- Elements ---
+		const els = {
+			langSelect: document.getElementById('language-select'),
+			themeBtn: document.getElementById('theme-toggle'),
+			uploadBtn: document.getElementById('upload-btn'),
+			fileInput: document.getElementById('file-upload'),
+			inputLog: document.getElementById('input-log'),
+			outputLog: document.getElementById('output-log'),
+			copyBtn: document.getElementById('copy-btn'),
+			logo: document.querySelector('.logo'),
+			filters: {
+				timestamps: document.getElementById('show-timestamps'),
+				ic: document.getElementById('filter-ic'),
+				action: document.getElementById('filter-action'),
+				radio: document.getElementById('filter-radio'),
+				ooc: document.getElementById('filter-ooc'),
+				system: document.getElementById('filter-system'),
+				phone: document.getElementById('filter-phone'),
+				removeEmpty: document.getElementById('remove-empty'),
+				smartMerge: document.getElementById('smart-merge')
+			}
+		};
+
+		// --- Initialization ---
+		function init() {
+			// Load saved settings
+			els.langSelect.value = currentLang;
+			updateLanguage(currentLang);
+			// Theme is already set by head script, but we sync state here
+
+			// Event Listeners
+			els.langSelect.addEventListener('change', (e) => updateLanguage(e.target.value));
+			els.themeBtn.addEventListener('click', toggleTheme);
+			els.uploadBtn.addEventListener('click', () => els.fileInput.click());
+			els.fileInput.addEventListener('change', handleFileUpload);
+			els.inputLog.addEventListener('input', processLogs); // Real-time
+			els.copyBtn.addEventListener('click', copyToClipboard);
+			els.logo.addEventListener('click', () => {
+				if (confirm(translations[currentLang].clearConfirm || "Clear chatlog?")) {
+					els.inputLog.value = '';
+					processLogs();
+				}
+			});
+
+			// Auto-process on filter change
+			Object.values(els.filters).forEach(cb => cb.addEventListener('change', processLogs));
+
+			// Drag & Drop
+			els.inputLog.addEventListener('dragover', (e) => { e.preventDefault(); els.inputLog.style.borderColor = 'var(--accent-color)'; });
+			els.inputLog.addEventListener('dragleave', () => { els.inputLog.style.borderColor = 'var(--border-color)'; });
+			els.inputLog.addEventListener('drop', handleDrop);
+		}
+
+		// --- Core Logic: Parsing ---
+		function processLogs() {
+			const rawText = els.inputLog.value;
+			// If empty, clear output
+			if (!rawText) {
+				els.outputLog.innerHTML = '';
+				return;
+			}
+
+			const lines = rawText.split(/\r?\n/);
+			let processedLines = [];
+
+			// 1. Pre-processing (Cleaning & Merging)
+			let bufferLine = null;
+
+			for (let i = 0; i < lines.length; i++) {
+				let line = lines[i].trim();
+
+				// Skip empty lines if filter is on
+				if (!line && els.filters.removeEmpty.checked) continue;
+				if (els.filters.removeEmpty.checked && (line === '---' || line.match(/^_+$/))) continue;
+
+				// Timestamp extraction
+				let timestamp = "";
+				const timeMatch = line.match(/^\[(\d{2}:\d{2}:\d{2})\]\s*/);
+				if (timeMatch) {
+					timestamp = timeMatch[1];
+					line = line.replace(/^\[\d{2}:\d{2}:\d{2}\]\s*/, '');
+				}
+
+				// Smart Merge Logic
+				// If smart merge is ON, and this line has NO timestamp, and it's not a system message start (heuristic),
+				// append to previous line.
+				if (els.filters.smartMerge.checked && !timeMatch && bufferLine && line.length > 0) {
+					bufferLine.content += " " + line;
+				} else {
+					if (bufferLine) processedLines.push(bufferLine);
+					bufferLine = { timestamp, content: line, original: lines[i] };
+				}
+			}
+			if (bufferLine) processedLines.push(bufferLine);
+
+			// 2. Categorization & Rendering
+			els.outputLog.innerHTML = '';
+
+			processedLines.forEach(item => {
+				const { type, formattedContent } = categorizeAndFormat(item.content);
+
+				// Check filters
+				if (type === 'radio' && !els.filters.radio.checked) return;
+				if (type === 'ooc' && !els.filters.ooc.checked) return;
+				if (type === 'action' && !els.filters.action.checked) return;
+				if (type === 'env' && !els.filters.action.checked) return; // Grouped with action
+				if (type === 'phone' && !els.filters.phone.checked) return;
+				if (type === 'system' && !els.filters.system.checked) return;
+				if ((type === 'speech' || type === 'shout' || type === 'whisper') && !els.filters.ic.checked) return;
+
+				// Build HTML
+				const div = document.createElement('div');
+				div.className = `log-line log-${type}`;
+
+				if (els.filters.timestamps.checked && item.timestamp) {
+					const tsSpan = document.createElement('span');
+					tsSpan.className = 'timestamp';
+					tsSpan.textContent = `[${item.timestamp}]`;
+					div.appendChild(tsSpan);
+				}
+
+				div.innerHTML += formattedContent; // Safe because we sanitize in categorizeAndFormat if needed, but here we want inner HTML for styling
+				els.outputLog.appendChild(div);
+			});
+		}
+
+		function categorizeAndFormat(text) {
+			// Helper to escape HTML but allow our specific tags later
+			const escape = (str) => str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+
+			// We escape first, then apply formatting to the escaped string
+			let safeText = escape(text);
+			let type = 'system';
+
+			// Regex Patterns (Priority Order)
+
+			// 1. Radio / Dep: **[S: or ** [ or (Рация)
+			if (/^\*\*(\s*)\[/.test(text) || /^\(Рация\)/.test(text)) {
+				type = 'radio';
+			}
+			// 2. OOC / PM / Admin: ((, [Adm, or double brackets
+			else if (/^\(\(/.test(text) || /^\[Adm/.test(text) || /\(\(.*\)\)/.test(text)) {
+				// Note: (( text )) is often OOC, but sometimes part of /do. 
+				// Strict OOC line start:
+				if (/^\(\(/.test(text) || /^\[Adm/.test(text)) {
+					type = 'ooc';
+				} else {
+					// Check if it's purely OOC line wrapped in (( ))
+					if (/^\(\(.*\)\)$/.test(text)) type = 'ooc';
+				}
+			}
+
+			// 3. Action (/me): * Name Surname OR > Name Surname
+			if (/^(\*|>)\s*[A-Z][a-z]+\s+[A-Z][a-z]+/.test(text) && !text.includes('((')) {
+				type = 'action';
+			}
+
+			// 4. Environment (/do): Starts with * ... (( Name Surname )) OR just * text
+			// /do often ends with (( Name Surname ))
+			else if (/^\*/.test(text) && (text.includes('((') || text.endsWith('))'))) {
+				type = 'env';
+			}
+
+			// 5. Phone: (cellphone): or (phone):
+			else if (/\(cellphone\):/i.test(text) || /\(phone\):/i.test(text) || /\(телефон\):/i.test(text)) {
+				type = 'phone';
+			}
+
+			// 6. Shout: shouts: or кричит:
+			else if (/shouts:\s*$/i.test(text) || /кричит:\s*$/i.test(text) || /shouts:/i.test(text) || /кричит:/i.test(text)) {
+				type = 'shout';
+			}
+
+			// 7. Whisper: whispers: or шепчет:
+			else if (/whispers:\s*$/i.test(text) || /шепчет:\s*$/i.test(text) || /whispers:/i.test(text) || /шепчет:/i.test(text)) {
+				type = 'whisper';
+			}
+
+			// 8. IC Speech: Name Surname says: or Name Surname говорит:
+			// Also handles: Name Surname says (to ...):
+			// Also handles: [!] Name Surname says: (Low speech/Foreign)
+			else if (/^(\[!\]\s*)?[A-Z][a-z]+\s+[A-Z][a-z]+\s+(says|говорит|каже)/i.test(text)) {
+				type = 'speech';
+			}
+
+			// Fallback for OOC if it contains (( )) but wasn't caught by strict start
+			if (type === 'system' && text.includes('((') && text.includes('))')) {
+				// Could be inline OOC or /do, but if we are here, it didn't match /do pattern strictly
+				// Let's leave it as system or check for OOC color
+				if (/^\(\(/.test(text)) type = 'ooc';
+			}
+
+			// --- Inner Formatting ---
+			// Highlight text between * * for IC speech types
+			if (['speech', 'shout', 'whisper'].includes(type)) {
+				// Regex to find *text* and wrap in span
+				// We need to be careful with already escaped text. * becomes *
+				safeText = safeText.replace(/\*([^*]+)\*/g, '<span class="inner-action">*$1*</span>');
+			}
+
+			return { type, formattedContent: safeText };
+		}
+
+		// --- UI Helpers ---
+		function updateLanguage(lang) {
+			currentLang = lang;
+			localStorage.setItem('chatlog_lang', lang);
+			document.querySelectorAll('[data-i18n]').forEach(el => {
+				const key = el.getAttribute('data-i18n');
+				if (translations[lang][key]) {
+					if (el.tagName === 'INPUT' && el.getAttribute('placeholder')) {
+						// Handle placeholder separately if needed, but here we just update textContent for labels
+					}
+					if (el.placeholder) {
+						el.placeholder = translations[lang].placeholder;
+					}
+					if (el.childNodes.length === 1 && el.childNodes[0].nodeType === 3) {
+						el.textContent = translations[lang][key];
+					} else if (el.tagName === 'SPAN') {
+						el.textContent = translations[lang][key];
+					} else if (el.tagName === 'BUTTON') {
+						el.textContent = translations[lang][key];
+					}
+				}
+			});
+			// Update placeholder explicitly
+			els.inputLog.placeholder = translations[lang].placeholder;
+		}
+
+		function toggleTheme() {
+			const newTheme = currentTheme === 'light' ? 'dark' : 'light';
+			setTheme(newTheme);
+		}
+
+		function setTheme(theme) {
+			currentTheme = theme;
+			localStorage.setItem('chatlog_theme', theme);
+			document.documentElement.setAttribute('data-theme', theme);
+		}
+
+		function handleFileUpload(e) {
+			const file = e.target.files[0];
+			if (!file) return;
+			readFile(file);
+		}
+
+		function handleDrop(e) {
+			e.preventDefault();
+			els.inputLog.style.borderColor = 'var(--border-color)';
+			const file = e.dataTransfer.files[0];
+			if (file) readFile(file);
+		}
+
+		function readFile(file) {
+			const reader = new FileReader();
+			reader.onload = (e) => {
+				els.inputLog.value = e.target.result;
+				processLogs();
+			};
+			reader.readAsText(file);
+		}
+
+		function copyToClipboard() {
+			const text = els.outputLog.innerText; // innerText gets the visible text without HTML tags
+			navigator.clipboard.writeText(text).then(() => {
+				const originalText = els.copyBtn.textContent;
+				els.copyBtn.textContent = translations[currentLang].copied;
+				setTimeout(() => {
+					els.copyBtn.textContent = translations[currentLang].copyText;
+				}, 2000);
+			});
+		}
+
+		// Start
+		init();
+
+	</script>
+</body>
+
+</html>
