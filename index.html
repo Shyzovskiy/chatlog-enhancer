@@ -333,6 +333,89 @@
 			text-overflow: ellipsis;
 		}
 
+		/* Nickname Filter */
+		.nickname-filter-input {
+			display: flex;
+			gap: 8px;
+			margin-bottom: 10px;
+		}
+
+		.nickname-filter-input input {
+			flex: 1;
+			padding: 8px;
+			border-radius: 6px;
+			border: 1px solid var(--border-color);
+			background-color: var(--input-bg);
+			color: var(--text-color);
+			font-size: 0.9rem;
+			outline: none;
+		}
+
+		.nickname-filter-input input:focus {
+			border-color: var(--accent-color);
+		}
+
+		.nickname-filter-input button {
+			width: auto;
+			padding: 8px 16px;
+			margin: 0;
+		}
+
+		.nickname-list {
+			display: flex;
+			flex-direction: column;
+			gap: 6px;
+			margin-bottom: 10px;
+			max-height: 200px;
+			overflow-y: auto;
+		}
+
+		.nickname-item {
+			display: flex;
+			justify-content: space-between;
+			align-items: center;
+			padding: 6px 10px;
+			background-color: var(--bg-color);
+			border: 1px solid var(--border-color);
+			border-radius: 4px;
+			font-size: 0.85rem;
+		}
+
+		.nickname-item span {
+			flex: 1;
+			color: var(--text-color);
+		}
+
+		.nickname-item button {
+			width: 24px;
+			height: 24px;
+			padding: 0;
+			margin: 0;
+			border-radius: 4px;
+			background-color: transparent;
+			border: none;
+			color: var(--text-color);
+			font-size: 1rem;
+			cursor: pointer;
+			display: flex;
+			align-items: center;
+			justify-content: center;
+			transition: all 0.2s;
+		}
+
+		.nickname-item button:hover {
+			background-color: var(--accent-color);
+			color: white;
+		}
+
+		.nickname-empty {
+			text-align: center;
+			padding: 10px;
+			color: #888;
+			font-size: 0.85rem;
+			font-style: italic;
+		}
+
 		/* Responsive */
 		@media (max-width: 768px) {
 			body {
@@ -385,6 +468,19 @@
 			<input type="file" id="file-upload" accept=".txt" style="display: none;">
 			<button id="upload-btn" data-i18n="uploadFile">Upload File</button>
 			<div id="file-name" class="file-name"></div>
+		</div>
+
+		<div class="control-group">
+			<label data-i18n="nicknameFilter">Nickname Filter</label>
+			<div class="nickname-filter-input">
+				<input type="text" id="nickname-input" placeholder="Enter nickname...">
+				<button id="add-nickname-btn" data-i18n="addNickname">Add</button>
+			</div>
+			<div id="nickname-list" class="nickname-list">
+				<div class="nickname-empty" data-i18n="noNicknames">No nicknames added</div>
+			</div>
+			<button id="clear-nicknames-btn" class="secondary" data-i18n="clearAllNicknames">Clear
+				All</button>
 		</div>
 
 		<div class="control-group">
@@ -465,6 +561,11 @@
 				actions: "Actions",
 				uploadFile: "Upload File",
 				process: "Process",
+				nicknameFilter: "Nickname Filter",
+				nicknameInput: "Enter nickname...",
+				addNickname: "Add",
+				clearAllNicknames: "Clear All",
+				noNicknames: "No nicknames added",
 				filters: "Filters",
 				showTimestamps: "Show Timestamps",
 				filterIC: "IC Speech (Say, Shout, Whisper)",
@@ -493,6 +594,11 @@
 				actions: "Действия",
 				uploadFile: "Загрузить файл",
 				process: "Обработать",
+				nicknameFilter: "Фильтр по никам",
+				nicknameInput: "Введите ник...",
+				addNickname: "Добавить",
+				clearAllNicknames: "Очистить всё",
+				noNicknames: "Нет добавленных ников",
 				filters: "Фильтры",
 				showTimestamps: "Показывать время",
 				filterIC: "IC Чат (Речь, Крик, Шепот)",
@@ -521,6 +627,11 @@
 				actions: "Дії",
 				uploadFile: "Завантажити файл",
 				process: "Обробити",
+				nicknameFilter: "Фільтр за ніками",
+				nicknameInput: "Введіть нік...",
+				addNickname: "Додати",
+				clearAllNicknames: "Очистити все",
+				noNicknames: "Немає доданих ніків",
 				filters: "Фільтри",
 				showTimestamps: "Показувати час",
 				filterIC: "IC Чат (Мова, Крик, Шепіт)",
@@ -547,6 +658,7 @@
 		// --- State & Config ---
 		let currentLang = localStorage.getItem('chatlog_lang') || 'en';
 		let currentTheme = localStorage.getItem('chatlog_theme') || 'dark';
+		let nicknameFilter = JSON.parse(localStorage.getItem('nickname_filter') || '[]');
 
 		// --- Elements ---
 		const els = {
@@ -572,7 +684,11 @@
 				system: document.getElementById('filter-system'),
 				phone: document.getElementById('filter-phone'),
 				call911: document.getElementById('filter-911')
-			}
+			},
+			nicknameInput: document.getElementById('nickname-input'),
+			addNicknameBtn: document.getElementById('add-nickname-btn'),
+			clearNicknamesBtn: document.getElementById('clear-nicknames-btn'),
+			nicknameList: document.getElementById('nickname-list')
 		};
 
 		// --- Initialization ---
@@ -630,6 +746,16 @@
 				});
 			});
 
+			// Nickname filter event listeners
+			els.addNicknameBtn.addEventListener('click', addNickname);
+			els.nicknameInput.addEventListener('keypress', (e) => {
+				if (e.key === 'Enter') addNickname();
+			});
+			els.clearNicknamesBtn.addEventListener('click', clearNicknames);
+
+			// Render initial nickname list
+			renderNicknameList();
+
 			// Drag & Drop
 			els.inputLog.addEventListener('dragover', (e) => { e.preventDefault(); els.inputLog.style.borderColor = 'var(--accent-color)'; });
 			els.inputLog.addEventListener('dragleave', () => { els.inputLog.style.borderColor = 'var(--border-color)'; });
@@ -638,6 +764,73 @@
 			// Initial process if we loaded data
 			if (savedLog) processLogs();
 		}
+
+		// --- Nickname Filter Functions ---
+		function renderNicknameList() {
+			if (nicknameFilter.length === 0) {
+				els.nicknameList.innerHTML = `<div class="nickname-empty" data-i18n="noNicknames">${translations[currentLang].noNicknames || 'No nicknames added'}</div>`;
+			} else {
+				els.nicknameList.innerHTML = nicknameFilter.map(nick => `
+					<div class="nickname-item">
+						<span>${nick}</span>
+						<button onclick="removeNickname('${nick.replace(/'/g, "\\'")}')">✕</button>
+					</div>
+				`).join('');
+			}
+		}
+
+		function addNickname() {
+			const nickname = els.nicknameInput.value.trim();
+			if (!nickname) return;
+
+			// Check if already exists (case-insensitive)
+			if (nicknameFilter.some(n => n.toLowerCase() === nickname.toLowerCase())) {
+				els.nicknameInput.value = '';
+				return;
+			}
+
+			nicknameFilter.push(nickname);
+			localStorage.setItem('nickname_filter', JSON.stringify(nicknameFilter));
+			els.nicknameInput.value = '';
+			renderNicknameList();
+			processLogs();
+		}
+
+		function removeNickname(nickname) {
+			nicknameFilter = nicknameFilter.filter(n => n !== nickname);
+			localStorage.setItem('nickname_filter', JSON.stringify(nicknameFilter));
+			renderNicknameList();
+			processLogs();
+		}
+
+		function clearNicknames() {
+			nicknameFilter = [];
+			localStorage.setItem('nickname_filter', JSON.stringify(nicknameFilter));
+			renderNicknameList();
+			processLogs();
+		}
+
+		// Extract nickname from log line
+		function extractNickname(text) {
+			// Pattern 1: Name Surname says/говорит/каже
+			let match = text.match(/^(?:\[!\]\s*)?([A-Z][a-z]+\s+[A-Z][a-z]+)\s+(?:says|говорит|каже)/i);
+			if (match) return match[1];
+
+			// Pattern 2: Name Surname shouts/кричит
+			match = text.match(/^([A-Z][a-z]+\s+[A-Z][a-z]+)\s+(?:shouts|кричит)/i);
+			if (match) return match[1];
+
+			// Pattern 3: Name Surname whispers/шепчет
+			match = text.match(/^([A-Z][a-z]+\s+[A-Z][a-z]+)\s+(?:whispers|шепчет)/i);
+			if (match) return match[1];
+
+			// Pattern 4: * Name Surname or > Name Surname (actions)
+			match = text.match(/^[*>]\s*([A-Z][a-z]+\s+[A-Z][a-z]+)/);
+			if (match) return match[1];
+
+			return null;
+		}
+
 
 		// --- Core Logic: Parsing ---
 		function processLogs() {
@@ -704,6 +897,20 @@
 				if (type === 'call911' && !els.filters.call911.checked) return;
 				if (type === 'system' && !els.filters.system.checked) return;
 				if ((type === 'speech' || type === 'shout' || type === 'whisper') && !els.filters.ic.checked) return;
+
+				// Nickname filter - only filter speeches and actions
+				if (nicknameFilter.length > 0) {
+					const isSpeechType = ['speech', 'shout', 'whisper'].includes(type);
+					const isActionType = ['action', 'env'].includes(type);
+
+					if (isSpeechType || isActionType) {
+						const nickname = extractNickname(item.content);
+						// If nickname doesn't match any in the filter list, skip this line
+						if (!nickname || !nicknameFilter.some(n => n.toLowerCase() === nickname.toLowerCase())) {
+							return;
+						}
+					}
+				}
 
 				// Build HTML
 				const div = document.createElement('div');
@@ -832,6 +1039,7 @@
 			});
 			// Update placeholder explicitly
 			els.inputLog.placeholder = translations[lang].placeholder;
+			els.nicknameInput.placeholder = translations[lang].nicknameInput;
 
 			// Re-process logs to update counters with new language
 			processLogs();
