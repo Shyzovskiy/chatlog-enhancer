@@ -318,6 +318,11 @@
 			user-select: none;
 		}
 
+		/* When enabled, allow selecting timestamps with the mouse */
+		.ts-selectable .timestamp {
+			user-select: text;
+		}
+
 		.line-count {
 			font-size: 0.8rem;
 			color: #888;
@@ -492,6 +497,9 @@
 						data-i18n="showTimestamps">Show Timestamps</span>
 				</label>
 				<label class="checkbox-item">
+					<input type="checkbox" id="selectable-timestamps"> <span data-i18n="selectableTimestamps">Selectable Timestamps</span>
+				</label>
+				<label class="checkbox-item">
 					<input type="checkbox" id="filter-ic"> <span data-i18n="filterIC">IC
 						Speech</span>
 				</label>
@@ -569,6 +577,7 @@
 				noNicknames: "No nicknames added",
 				filters: "Filters",
 				showTimestamps: "Show Timestamps",
+				selectableTimestamps: "Selectable Timestamps",
 				filterIC: "IC Speech (Say, Shout, Whisper)",
 				filterAction: "Actions (/me, /do)",
 				filterRadio: "Radio / Dep",
@@ -602,6 +611,7 @@
 				noNicknames: "Нет добавленных ников",
 				filters: "Фильтры",
 				showTimestamps: "Показывать время",
+				selectableTimestamps: "Выделяемые таймстампы",
 				filterIC: "IC Чат (Речь, Крик, Шепот)",
 				filterAction: "Отыгровки (/me, /do)",
 				filterRadio: "Рация / Департамент",
@@ -635,6 +645,7 @@
 				noNicknames: "Немає доданих ніків",
 				filters: "Фільтри",
 				showTimestamps: "Показувати час",
+				selectableTimestamps: "Виділяти часові мітки",
 				filterIC: "IC Чат (Мова, Крик, Шепіт)",
 				filterAction: "Відігравання (/me, /do)",
 				filterRadio: "Рація / Департамент",
@@ -678,6 +689,7 @@
 			outputCount: document.getElementById('output-count'),
 			filters: {
 				timestamps: document.getElementById('show-timestamps'),
+				timestampsSelectable: document.getElementById('selectable-timestamps'),
 				ic: document.getElementById('filter-ic'),
 				action: document.getElementById('filter-action'),
 				radio: document.getElementById('filter-radio'),
@@ -706,6 +718,8 @@
 					els.filters[key].checked = (savedState === 'true');
 				}
 			});
+			// Apply initial selectable timestamps state
+			updateTimestampSelectableClass();
 
 			// Load saved log
 			const savedLog = localStorage.getItem('saved_input_log');
@@ -743,6 +757,7 @@
 			Object.entries(els.filters).forEach(([key, cb]) => {
 				cb.addEventListener('change', () => {
 					localStorage.setItem('filter_' + key, cb.checked);
+					if (key === 'timestampsSelectable') updateTimestampSelectableClass();
 					processLogs();
 				});
 			});
@@ -1057,6 +1072,12 @@
 			currentTheme = theme;
 			localStorage.setItem('chatlog_theme', theme);
 			document.documentElement.setAttribute('data-theme', theme);
+		}
+
+		// Toggle CSS class to allow selecting timestamps with mouse when enabled
+		function updateTimestampSelectableClass() {
+			const enabled = els.filters && els.filters.timestampsSelectable && els.filters.timestampsSelectable.checked;
+			document.body.classList.toggle('ts-selectable', !!enabled);
 		}
 
 		function handleFileUpload(e) {
