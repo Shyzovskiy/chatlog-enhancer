@@ -497,7 +497,8 @@
 						data-i18n="showTimestamps">Show Timestamps</span>
 				</label>
 				<label class="checkbox-item">
-					<input type="checkbox" id="selectable-timestamps"> <span data-i18n="selectableTimestamps">Selectable Timestamps</span>
+					<input type="checkbox" id="selectable-timestamps"> <span
+						data-i18n="selectableTimestamps">Selectable Timestamps</span>
 				</label>
 				<label class="checkbox-item">
 					<input type="checkbox" id="filter-ic"> <span data-i18n="filterIC">IC
@@ -829,21 +830,22 @@
 		// Extract nickname from log line
 		function extractNickname(text) {
 			// Allow optional leading bracketed tags like [N], [!], [VIP], etc.
+			// And optional trailing suffix like (M), (S) in parentheses after the name.
 
-			// Pattern 1: [tags] Name Surname says/говорит/каже
-			let match = text.match(/^(?:\[[^\]]+\]\s*)*([A-Z][a-z]+\s+[A-Z][a-z]+)\s+(?:says|говорит|каже)/i);
+			// Pattern 1: [tags] Name Surname (Suffix) says/говорит/каже
+			let match = text.match(/^(?:\[[^\]]+\]\s*)*([A-Z][a-z]+\s+[A-Z][a-z]+)(?:\s+\([^)]+\))?\s+(?:says|говорит|каже)/i);
 			if (match) return match[1];
 
-			// Pattern 2: [tags] Name Surname shouts/кричит
-			match = text.match(/^(?:\[[^\]]+\]\s*)*([A-Z][a-z]+\s+[A-Z][a-z]+)\s+(?:shouts|кричит)/i);
+			// Pattern 2: [tags] Name Surname (Suffix) shouts/кричит
+			match = text.match(/^(?:\[[^\]]+\]\s*)*([A-Z][a-z]+\s+[A-Z][a-z]+)(?:\s+\([^)]+\))?\s+(?:shouts|кричит)/i);
 			if (match) return match[1];
 
-			// Pattern 3: [tags] Name Surname whispers/шепчет
-			match = text.match(/^(?:\[[^\]]+\]\s*)*([A-Z][a-z]+\s+[A-Z][a-z]+)\s+(?:whispers|шепчет)/i);
+			// Pattern 3: [tags] Name Surname (Suffix) whispers/шепчет
+			match = text.match(/^(?:\[[^\]]+\]\s*)*([A-Z][a-z]+\s+[A-Z][a-z]+)(?:\s+\([^)]+\))?\s+(?:whispers|шепчет)/i);
 			if (match) return match[1];
 
-			// Pattern 4: * [tags] Name Surname or > [tags] Name Surname (actions)
-			match = text.match(/^[*>]\s*(?:\[[^\]]+\]\s*)*([A-Z][a-z]+\s+[A-Z][a-z]+)/);
+			// Pattern 4: * [tags] Name Surname (Suffix) or > [tags] Name Surname (Suffix) (actions)
+			match = text.match(/^[*>]\s*(?:\[[^\]]+\]\s*)*([A-Z][a-z]+\s+[A-Z][a-z]+)(?:\s+\([^)]+\))?/);
 			if (match) return match[1];
 
 			return null;
@@ -983,7 +985,7 @@
 			}
 
 			// 3. Action (/me): * Name Surname OR > Name Surname
-			if (/^(\*|>)\s*(?:\[[^\]]+\]\s*)*[A-Z][a-z]+\s+[A-Z][a-z]+/.test(text) && !text.includes('((')) {
+			if (/^(\*|>)\s*(?:\[[^\]]+\]\s*)*[A-Z][a-z]+\s+[A-Z][a-z]+(?:\s+\([^)]+\))?/.test(text) && !text.includes('((')) {
 				type = 'action';
 			}
 
@@ -1011,7 +1013,7 @@
 			// 8. IC Speech: Name Surname says: or Name Surname говорит:
 			// Also handles: Name Surname says (to ...):
 			// Also handles: [!] Name Surname says: (Low speech/Foreign)
-			else if (/^(?:\[[^\]]+\]\s*)*[A-Z][a-z]+\s+[A-Z][a-z]+\s+(?:says|говорит|каже)/i.test(text)) {
+			else if (/^(?:\[[^\]]+\]\s*)*[A-Z][a-z]+\s+[A-Z][a-z]+(?:\s+\([^)]+\))?\s+(?:says|говорит|каже)/i.test(text)) {
 				type = 'speech';
 			}
 
